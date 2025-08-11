@@ -227,15 +227,15 @@ async def get_available_models(
         return [
             ModelInfo(
                 name=model["name"],
-                source_languages=model["source_languages"],
-                target_languages=model["target_languages"],
+                source_languages=model.get("supported_languages", []),
+                target_languages=model.get("supported_languages", []),
                 description=model["description"],
                 timestamp=datetime.utcnow()
             )
             for model in models
         ]
     except Exception as e:
-        logger.error("Error retrieving models", error=str(e))
+        logger.error(f"Error retrieving models: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to retrieve models: {str(e)}"

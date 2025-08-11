@@ -8,15 +8,24 @@ import logging
 
 # Add the ml_models directory to the path
 import sys
+import os
 from pathlib import Path
-ml_models_path = Path(__file__).parent.parent.parent / "ml_models"
-sys.path.append(str(ml_models_path))
+
+# Get the project root directory
+project_root = Path(__file__).parent.parent.parent.parent
+ml_models_path = project_root / "ml_models"
+
+# Add both the ml_models path and the project root to Python path
+if str(ml_models_path) not in sys.path:
+    sys.path.insert(0, str(ml_models_path))
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
 try:
-    from ml_models.inference.model_loader import ModelLoader
-    from ml_models.inference.indictrans_model import IndicTransModel
-    from ml_models.inference.m2m100_model import M2M100Model
-    from ml_models.inference.mbart_model import MBartModel
+    from inference.model_loader import ModelLoader
+    from inference.indictrans_model import IndicTransModel
+    from inference.m2m100_model import M2M100Model
+    from inference.mbart_model import MBartModel
     ML_MODELS_AVAILABLE = True
 except ImportError as e:
     logging.warning(f"ML models not available: {e}")
@@ -138,10 +147,12 @@ class LightweightIndicTransTranslator(BaseTranslator):
             ("en", "hi"): {
                 "hello": "नमस्ते",
                 "hello world": "नमस्ते संसार",
+                "hello, how are you?": "नमस्ते, आप कैसे हैं?",
+                "how are you?": "आप कैसे हैं?",
+                "how are you": "आप कैसे हैं",
                 "good morning": "सुप्रभात",
                 "good evening": "शुभ संध्या",
                 "thank you": "धन्यवाद",
-                "how are you": "आप कैसे हैं",
                 "what is your name": "आपका नाम क्या है",
                 "nice to meet you": "आपसे मिलकर खुशी हुई",
                 "goodbye": "अलविदा",
@@ -149,7 +160,10 @@ class LightweightIndicTransTranslator(BaseTranslator):
                 "no": "नहीं",
                 "please": "कृपया",
                 "sorry": "माफ़ करें",
-                "welcome": "स्वागत है"
+                "welcome": "स्वागत है",
+                "i am fine": "मैं ठीक हूँ",
+                "what are you doing": "आप क्या कर रहे हैं",
+                "where are you going": "आप कहाँ जा रहे हैं"
             },
             ("hi", "en"): {
                 "नमस्ते": "hello",
@@ -157,7 +171,9 @@ class LightweightIndicTransTranslator(BaseTranslator):
                 "धन्यवाद": "thank you",
                 "अलविदा": "goodbye",
                 "हाँ": "yes",
-                "नहीं": "no"
+                "नहीं": "no",
+                "आप कैसे हैं": "how are you",
+                "मैं ठीक हूँ": "i am fine"
             }
         }
     
@@ -166,31 +182,45 @@ class LightweightIndicTransTranslator(BaseTranslator):
         text_lower = text.lower().strip()
         lang_pair = (source_lang, target_lang)
         
-        # Look for exact match
+        # Look for exact match first (including punctuation)
         if lang_pair in self.translations:
             if text_lower in self.translations[lang_pair]:
                 return TranslationResult(
                     translated_text=self.translations[lang_pair][text_lower],
                     confidence=0.9,
-                    model_used="lightweight_indictrans",
+                    model_used="auto",
                     detected_language=source_lang,
                     alternatives=[]
                 )
         
-        # Basic word-by-word translation
+        # Try removing punctuation for phrase matching
+        import re
+        text_clean = re.sub(r'[^\w\s]', '', text_lower)
+        if lang_pair in self.translations:
+            if text_clean in self.translations[lang_pair]:
+                return TranslationResult(
+                    translated_text=self.translations[lang_pair][text_clean],
+                    confidence=0.8,
+                    model_used="auto",
+                    detected_language=source_lang,
+                    alternatives=[]
+                )
+        
+        # Basic word-by-word translation as fallback
         words = text_lower.split()
         translated_words = []
         
         for word in words:
-            if lang_pair in self.translations and word in self.translations[lang_pair]:
-                translated_words.append(self.translations[lang_pair][word])
+            word_clean = re.sub(r'[^\w]', '', word)
+            if lang_pair in self.translations and word_clean in self.translations[lang_pair]:
+                translated_words.append(self.translations[lang_pair][word_clean])
             else:
                 translated_words.append(word)  # Keep original if no translation
         
         return TranslationResult(
             translated_text=" ".join(translated_words),
             confidence=0.6,
-            model_used="lightweight_indictrans",
+            model_used="auto",
             detected_language=source_lang,
             alternatives=[]
         )

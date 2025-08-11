@@ -2,6 +2,7 @@ import React from 'react';
 import styled, { createGlobalStyle } from 'styled-components';
 import { TranslationInterface } from './components';
 import { TranslationRequest, TranslationResult } from './types';
+import { translationService } from './services/translationService';
 
 // Global styles
 const GlobalStyle = createGlobalStyle`
@@ -29,9 +30,19 @@ const GlobalStyle = createGlobalStyle`
 `;
 
 const App: React.FC = () => {
-  // Mock translation function for demo purposes
-  // In real implementation, this would call the backend API
+  // Real translation function using the backend API
   const handleTranslate = async (request: TranslationRequest): Promise<TranslationResult> => {
+    try {
+      return await translationService.translateText(request);
+    } catch (error) {
+      console.error('Translation error:', error);
+      // Fallback to mock translation for demo if API fails
+      return getMockTranslation(request);
+    }
+  };
+
+  // Fallback mock translation function
+  const getMockTranslation = async (request: TranslationRequest): Promise<TranslationResult> => {
     // Simulate API call delay
     await new Promise(resolve => setTimeout(resolve, 1500));
 
