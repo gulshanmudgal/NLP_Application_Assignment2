@@ -13,7 +13,7 @@ YELLOW = \033[1;33m
 RED = \033[0;31m
 NC = \033[0m # No Color
 
-.PHONY: help test test-unit test-integration test-performance test-smoke test-all clean setup install-test-deps docker-up docker-down docker-restart frontend backend
+.PHONY: help test test-unit test-integration test-performance test-smoke test-all clean setup install-test-deps docker-up docker-down docker-restart frontend backend dev dev-full
 
 help: ## Show this help message
 	@echo "$(GREEN)NLP Translation Application - Commands$(NC)"
@@ -23,6 +23,8 @@ help: ## Show this help message
 	@echo "  install-test-deps  - Install testing dependencies"
 	@echo ""
 	@echo "$(YELLOW)Development Commands:$(NC)"
+	@echo "  dev                - Install dependencies and start both frontend and backend"
+	@echo "  dev-full           - Full development deployment with logging and health checks"
 	@echo "  frontend           - Start React frontend development server"
 	@echo "  backend            - Start FastAPI backend development server"
 	@echo ""
@@ -51,6 +53,16 @@ setup:
 	cd backend && pip install -r requirements.txt
 	cp .env.example .env
 	@echo "Setup complete! Edit .env file with your configuration."
+
+# Quick development start - install dependencies and start both services
+dev:
+	@echo "$(GREEN)Starting development environment...$(NC)"
+	./scripts/dev-simple.sh
+
+# Full development deployment with logging and health checks
+dev-full:
+	@echo "$(GREEN)Starting full development deployment...$(NC)"
+	./scripts/deploy-dev.sh
 
 # Start frontend development server
 frontend:
