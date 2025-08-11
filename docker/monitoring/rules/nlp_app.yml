@@ -1,0 +1,110 @@
+groups:
+  # Recording rules for common queries
+  - name: nlp_app_recording_rules
+    rules:
+      # HTTP Request Rate
+      - record: nlp:http_requests:rate5m
+        expr: rate(http_requests_total[5m])
+      
+      # Error Rate
+      - record: nlp:http_errors:rate5m
+        expr: rate(http_requests_total{status=~"5.."}[5m])
+      
+      # Response Time 95th Percentile
+      - record: nlp:http_request_duration:p95
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))
+      
+      # Translation Request Rate
+      - record: nlp:translation_requests:rate5m
+        expr: rate(translation_requests_total[5m])
+      
+      # Model Loading Time
+      - record: nlp:model_load_duration:p95
+        expr: histogram_quantile(0.95, rate(model_load_duration_seconds_bucket[5m]))
+      
+      # Cache Hit Rate
+      - record: nlp:cache_hits:rate5m
+        expr: rate(cache_hits_total[5m]) / rate(cache_requests_total[5m])
+
+  # Alerting rules
+  - name: nlp_app_alerts
+    rules:
+      # High Error Rate
+      - alert: HighErrorRate
+        expr: nlp:http_errors:rate5m / nlp:http_requests:rate5m > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value }} which is above the threshold of 5%"
+      
+      # High Response Time
+      - alert: HighResponseTime
+        expr: nlp:http_request_duration:p95 > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High response time detected"
+          description: "95th percentile response time is {{ $value }}s"
+      
+      # Database Connection Issues
+      - alert: DatabaseDown
+        expr: up{job="postgres"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "PostgreSQL database is down"
+          description: "PostgreSQL database has been down for more than 1 minute"
+      
+      # Redis Connection Issues
+      - alert: RedisDown
+        expr: up{job="redis"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Redis cache is down"
+          description: "Redis cache has been down for more than 1 minute"
+      
+      # High Memory Usage
+      - alert: HighMemoryUsage
+        expr: (container_memory_usage_bytes / container_spec_memory_limit_bytes) > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage detected"
+          description: "Container {{ $labels.name }} memory usage is {{ $value | humanizePercentage }}"
+      
+      # High CPU Usage
+      - alert: HighCPUUsage
+        expr: rate(container_cpu_usage_seconds_total[5m]) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage detected"
+          description: "Container {{ $labels.name }} CPU usage is {{ $value | humanizePercentage }}"
+      
+      # Model Loading Failures
+      - alert: ModelLoadingFailures
+        expr: increase(model_loading_failures_total[5m]) > 3
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Multiple model loading failures"
+          description: "{{ $value }} model loading failures in the last 5 minutes"
+      
+      # Low Cache Hit Rate
+      - alert: LowCacheHitRate
+        expr: nlp:cache_hits:rate5m < 0.7
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low cache hit rate"
+          description: "Cache hit rate is {{ $value | humanizePercentage }} which is below 70%"
